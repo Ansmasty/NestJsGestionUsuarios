@@ -7,12 +7,14 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Backend API')
-    .setDescription('API for user registration, login, and password recovery')
+    .setDescription('API para registro de usuarios, inicio de sesión, y recuperación de contraseñas')
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
