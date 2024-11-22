@@ -15,11 +15,12 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {
-    // Configura el transportador de email (usar variables de entorno en producción)
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.warn('EMAIL_USER o EMAIL_PASSWORD no están configurados');
+    }
+
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
+      service: 'gmail',  // Especificamos el servicio
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD,
@@ -55,31 +56,32 @@ export class UsersService {
     }
 
     try {
-      // Generar token simple
       const resetToken = crypto.randomBytes(32).toString('hex');
-      
-      // Guardar token hasheado en la base de datos
       const hashedToken = await bcrypt.hash(resetToken, 10);
+      
       user.resetPasswordToken = hashedToken;
-      user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hora
+      user.resetPasswordExpires = new Date(Date.now() + 3600000);
       await this.usersRepository.save(user);
 
-      // Enviar email con el token sin hashear
+      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+        console.log('Token generado (desarrollo):', resetToken);
+        return;
+      }
+
       await this.transporter.sendMail({
+        from: process.env.EMAIL_USER,
         to: user.email,
         subject: 'Recuperación de Contraseña',
-        text: `El token para actualizar su contraseña es: ${resetToken}`,
         html: `
           <h3>Recuperación de Contraseña</h3>
-          <p>El token para actualizar su contraseña es:</p>
-          <p><strong>${resetToken}</strong></p>
+          <p>Has solicitado restablecer tu contraseña.</p>
+          <p>Tu token de recuperación es: <strong>${resetToken}</strong></p>
           <p>Este token expirará en 1 hora.</p>
         `,
       });
-
     } catch (error) {
       console.error('Error en requestPasswordReset:', error);
-      throw new Error('Error al procesar la solicitud de reset');
+      throw new UnauthorizedException('Error al enviar el email de recuperación');
     }
   }
 
