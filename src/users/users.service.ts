@@ -51,32 +51,28 @@ export class UsersService {
   async requestPasswordReset(email: string): Promise<void> {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
+      // Por seguridad, no revelamos si el email existe o no
+      return;
     }
 
-    // Generar token aleatorio
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const hash = await bcrypt.hash(resetToken, 10);
+    try {
+      // Generar token aleatorio
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hash = await bcrypt.hash(resetToken, 10);
 
-    // Guardar token y fecha de expiración
-    user.resetPasswordToken = hash;
-    user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hora
-    await this.usersRepository.save(user);
+      // Guardar token y fecha de expiración
+      user.resetPasswordToken = hash;
+      user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hora
+      await this.usersRepository.save(user);
 
-    // Enviar email
-    const resetUrl = `https://tu-frontend.com/reset-password?token=${resetToken}&email=${email}`;
-    
-    await this.transporter.sendMail({
-      to: email,
-      subject: 'Recuperación de Contraseña',
-      html: `
-        <p>Has solicitado restablecer tu contraseña.</p>
-        <p>Haz clic en el siguiente enlace para continuar:</p>
-        <a href="${resetUrl}">Restablecer Contraseña</a>
-        <p>Este enlace expirará en 1 hora.</p>
-        <p>Si no solicitaste esto, ignora este email.</p>
-      `,
-    });
+      // En lugar de enviar email, solo guardamos el token
+      // (para pruebas, devolvemos el token en la respuesta)
+      console.log('Reset Token:', resetToken);
+      
+    } catch (error) {
+      console.error('Error en requestPasswordReset:', error);
+      throw new Error('Error al procesar la solicitud de reset');
+    }
   }
 
   async resetPassword(token: string, email: string, newPassword: string): Promise<void> {

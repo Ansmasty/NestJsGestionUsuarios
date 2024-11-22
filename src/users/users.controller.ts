@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Put, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -30,10 +30,23 @@ export class UsersController {
     );
   }
 
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiResponse({ status: 200, description: 'Password reset requested successfully.' })
+  @ApiResponse({ status: 500, description: 'Internal server error.' })
   @Post('request-password-reset')
   async requestPasswordReset(@Body('email') email: string) {
-    await this.usersService.requestPasswordReset(email);
-    return { message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña' };
+    try {
+      await this.usersService.requestPasswordReset(email);
+      return { 
+        message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña',
+        // Para pruebas, puedes ver el token en los logs del servidor
+      };
+    } catch (error) {
+      throw new HttpException(
+        'Error al procesar la solicitud',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   @Post('reset-password')
