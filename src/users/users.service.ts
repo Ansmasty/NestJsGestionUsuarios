@@ -15,6 +15,10 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {
+    console.log('Iniciando configuración de email...');
+    console.log('EMAIL_USER configurado:', !!process.env.EMAIL_USER);
+    console.log('EMAIL_PASSWORD configurado:', !!process.env.EMAIL_PASSWORD);
+
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
@@ -25,21 +29,21 @@ export class UsersService {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASSWORD,
         },
-        tls: {
-          rejectUnauthorized: false
-        }
+        debug: true,
+        logger: true
       });
 
-      // Verificar configuración
-      this.transporter.verify((error, success) => {
-        if (error) {
-          console.error('Error en configuración de email:', error);
-        } else {
-          console.log('Servidor listo para enviar emails');
-        }
-      });
-    } else {
-      console.warn('Credenciales de email no configuradas');
+      // Verificación inmediata
+      this.verifyConnection();
+    }
+  }
+
+  private async verifyConnection() {
+    try {
+      const verification = await this.transporter.verify();
+      console.log('Conexión SMTP verificada:', verification);
+    } catch (error) {
+      console.error('Error en verificación SMTP:', error);
     }
   }
 
@@ -79,25 +83,28 @@ export class UsersService {
       await this.usersRepository.save(user);
 
       if (!this.transporter) {
-        console.log('Email no configurado - Token:', resetToken);
+        console.log('Modo desarrollo - Token:', resetToken);
         return;
       }
 
-      try {
-        const mailOptions = {
-          from: `"Recuperación de Contraseña" <${process.env.EMAIL_USER}>`,
-          to: user.email,
-          subject: 'Recuperación de Contraseña',
-          html: `
-            <h3>Recuperación de Contraseña</h3>
-            <p>Has solicitado restablecer tu contraseña.</p>
-            <p>Tu token de recuperación es: <strong>${resetToken}</strong></p>
-            <p>Este token expirará en 1 hora.</p>
-          `
-        };
+      const mailOptions = {
+        from: {
+          name: 'Sistema de Recuperación',
+          address: process.env.EMAIL_USER
+        },
+        to: user.email,
+        subject: 'Recuperación de Contraseña',
+        html: `
+          <h3>Recuperación de Contraseña</h3>
+          <p>Has solicitado restablecer tu contraseña.</p>
+          <p>Tu token de recuperación es: <strong>${resetToken}</strong></p>
+          <p>Este token expirará en 1 hora.</p>
+        `
+      };
 
-        await this.transporter.sendMail(mailOptions);
-        console.log('Email enviado exitosamente');
+      try {
+        const info = await this.transporter.sendMail(mailOptions);
+        console.log('Email enviado:', info.response);
       } catch (emailError) {
         console.error('Error al enviar email:', emailError);
         console.log('Token de respaldo:', resetToken);
