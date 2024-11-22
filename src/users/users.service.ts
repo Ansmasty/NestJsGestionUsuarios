@@ -15,15 +15,31 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {
-    // Inicializar transporter solo si las variables de entorno están presentes
     if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASSWORD,
         },
+        tls: {
+          rejectUnauthorized: false
+        }
       });
+
+      // Verificar configuración
+      this.transporter.verify((error, success) => {
+        if (error) {
+          console.error('Error en configuración de email:', error);
+        } else {
+          console.log('Servidor listo para enviar emails');
+        }
+      });
+    } else {
+      console.warn('Credenciales de email no configuradas');
     }
   }
 
@@ -52,28 +68,24 @@ export class UsersService {
     try {
       const user = await this.usersRepository.findOne({ where: { email } });
       if (!user) {
-        return; // Silenciosamente retornamos si el usuario no existe
-      }
-
-      // Generar token
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const hashedToken = await bcrypt.hash(resetToken, 10);
-
-      // Actualizar usuario con el token
-      user.resetPasswordToken = hashedToken;
-      user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hora
-      await this.usersRepository.save(user);
-
-      // Si estamos en modo desarrollo o no hay configuración de email
-      if (!this.transporter) {
-        console.log('Modo desarrollo - Token generado:', resetToken);
         return;
       }
 
-      // Enviar email
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const hashedToken = await bcrypt.hash(resetToken, 10);
+
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpires = new Date(Date.now() + 3600000);
+      await this.usersRepository.save(user);
+
+      if (!this.transporter) {
+        console.log('Email no configurado - Token:', resetToken);
+        return;
+      }
+
       try {
-        await this.transporter.sendMail({
-          from: process.env.EMAIL_USER,
+        const mailOptions = {
+          from: `"Recuperación de Contraseña" <${process.env.EMAIL_USER}>`,
           to: user.email,
           subject: 'Recuperación de Contraseña',
           html: `
@@ -81,11 +93,13 @@ export class UsersService {
             <p>Has solicitado restablecer tu contraseña.</p>
             <p>Tu token de recuperación es: <strong>${resetToken}</strong></p>
             <p>Este token expirará en 1 hora.</p>
-          `,
-        });
+          `
+        };
+
+        await this.transporter.sendMail(mailOptions);
+        console.log('Email enviado exitosamente');
       } catch (emailError) {
         console.error('Error al enviar email:', emailError);
-        // En caso de error de email, aún mostramos el token en logs
         console.log('Token de respaldo:', resetToken);
       }
     } catch (error) {
