@@ -10,12 +10,20 @@ async function bootstrap() {
     .setTitle('Backend API')
     .setDescription('API para registro de usuarios, inicio de sesión, y recuperación de contraseñas')
     .setVersion('1.0')
+    .addBearerAuth() // Añade soporte para autenticación Bearer
     .build();
+  
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
+    explorer: true,
     swaggerOptions: {
       persistAuthorization: true,
-    },
+      displayRequestDuration: true,
+      docExpansion: 'none',
+      filter: true,
+      showExtensions: true,
+      tryItOutEnabled: true
+    }
   });
 
   const port = process.env.PORT || 3000;
