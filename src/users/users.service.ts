@@ -51,24 +51,32 @@ export class UsersService {
   async requestPasswordReset(email: string): Promise<void> {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
-      // Por seguridad, no revelamos si el email existe o no
-      return;
+      return; // Por seguridad, no revelamos si el email existe
     }
 
     try {
-      // Generar token aleatorio
+      // Generar token simple
       const resetToken = crypto.randomBytes(32).toString('hex');
-      const hash = await bcrypt.hash(resetToken, 10);
-
-      // Guardar token y fecha de expiración
-      user.resetPasswordToken = hash;
+      
+      // Guardar token hasheado en la base de datos
+      const hashedToken = await bcrypt.hash(resetToken, 10);
+      user.resetPasswordToken = hashedToken;
       user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hora
       await this.usersRepository.save(user);
 
-      // En lugar de enviar email, solo guardamos el token
-      // (para pruebas, devolvemos el token en la respuesta)
-      console.log('Reset Token:', resetToken);
-      
+      // Enviar email con el token sin hashear
+      await this.transporter.sendMail({
+        to: user.email,
+        subject: 'Recuperación de Contraseña',
+        text: `El token para actualizar su contraseña es: ${resetToken}`,
+        html: `
+          <h3>Recuperación de Contraseña</h3>
+          <p>El token para actualizar su contraseña es:</p>
+          <p><strong>${resetToken}</strong></p>
+          <p>Este token expirará en 1 hora.</p>
+        `,
+      });
+
     } catch (error) {
       console.error('Error en requestPasswordReset:', error);
       throw new Error('Error al procesar la solicitud de reset');
@@ -88,9 +96,9 @@ export class UsersService {
       throw new UnauthorizedException('El token ha expirado');
     }
 
-    // Verificar token
-    const isValid = await bcrypt.compare(token, user.resetPasswordToken);
-    if (!isValid) {
+    // Comparar el token recibido con el hash almacenado
+    const isValidToken = await bcrypt.compare(token, user.resetPasswordToken);
+    if (!isValidToken) {
       throw new UnauthorizedException('Token inválido');
     }
 
