@@ -15,11 +15,17 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {
-    console.log('Iniciando configuración de email...');
-    console.log('EMAIL_USER configurado:', !!process.env.EMAIL_USER);
-    console.log('EMAIL_PASSWORD configurado:', !!process.env.EMAIL_PASSWORD);
+    console.log('Iniciando configuración de email en ambiente:', process.env.NODE_ENV);
+    
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.warn('Variables de email no configuradas:', {
+        EMAIL_USER_EXISTS: !!process.env.EMAIL_USER,
+        EMAIL_PASSWORD_EXISTS: !!process.env.EMAIL_PASSWORD
+      });
+      return;
+    }
 
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+    try {
       this.transporter = nodemailer.createTransport({
         service: 'gmail',
         host: 'smtp.gmail.com',
@@ -33,17 +39,28 @@ export class UsersService {
         logger: true
       });
 
-      // Verificación inmediata
+      // Verificar configuración inmediatamente
       this.verifyConnection();
+    } catch (error) {
+      console.error('Error al configurar transporter:', error);
     }
   }
 
   private async verifyConnection() {
     try {
       const verification = await this.transporter.verify();
-      console.log('Conexión SMTP verificada:', verification);
+      console.log('Configuración SMTP verificada:', verification);
     } catch (error) {
       console.error('Error en verificación SMTP:', error);
+      console.error('Detalles de configuración:', {
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        auth: {
+          user: process.env.EMAIL_USER ? 'configurado' : 'no configurado',
+          pass: process.env.EMAIL_PASSWORD ? 'configurado' : 'no configurado'
+        }
+      });
     }
   }
 
