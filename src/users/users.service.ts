@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -18,11 +18,17 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  async updatePassword(email: string, newPassword: string): Promise<User> {
+  async updatePassword(email: string, currentPassword: string, newPassword: string): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('Usuario no encontrado');
     }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('La contraseña actual es incorrecta');
+    }
+
     user.password = await bcrypt.hash(newPassword, 10);
     return this.usersRepository.save(user);
   }

@@ -1,7 +1,8 @@
-import { Controller, Post, Body, Put } from '@nestjs/common';
+import { Controller, Post, Body, Put, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -18,9 +19,14 @@ export class UsersController {
 
   @ApiOperation({ summary: 'Update user password' })
   @ApiResponse({ status: 200, description: 'Password updated successfully.' })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect.' })
   @ApiResponse({ status: 404, description: 'User not found.' })
   @Put('update-password')
-  async updatePassword(@Body() body: { email: string; newPassword: string }) {
-    return this.usersService.updatePassword(body.email, body.newPassword);
+  async updatePassword(@Body() updatePasswordDto: UpdatePasswordDto) {
+    return this.usersService.updatePassword(
+      updatePasswordDto.email,
+      updatePasswordDto.currentPassword,
+      updatePasswordDto.newPassword
+    );
   }
 }
