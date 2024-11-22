@@ -29,4 +29,20 @@ export class UsersController {
       updatePasswordDto.newPassword
     );
   }
+
+  @Post('request-password-reset')
+  async requestPasswordReset(@Body('email') email: string) {
+    await this.usersService.requestPasswordReset(email);
+    return { message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña' };
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body('token') token: string,
+    @Body('email') email: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    await this.usersService.resetPassword(token, email, newPassword);
+    return { message: 'Contraseña actualizada exitosamente' };
+  }
 }
