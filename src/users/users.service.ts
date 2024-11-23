@@ -13,12 +13,30 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {
-    // Verificar y configurar SendGrid al inicio
+    console.log('Iniciando servicio con variables de entorno:', {
+      SENDGRID_KEY_EXISTS: !!process.env.SENDGRID_API_KEY,
+      NODE_ENV: process.env.NODE_ENV
+    });
+
     if (process.env.SENDGRID_API_KEY) {
       sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-      console.log('SendGrid API Key configurada');
-    } else {
-      console.warn('SENDGRID_API_KEY no está configurada');
+      // Verificar configuración
+      this.verifyConfig();
+    }
+  }
+
+  private async verifyConfig() {
+    try {
+      const msg = {
+        to: 'test@example.com',
+        from: 'didierguzman333@gmail.com',
+        subject: 'Test',
+        text: 'Test'
+      };
+      await sgMail.send(msg);
+      console.log('SendGrid configurado correctamente');
+    } catch (error) {
+      console.error('Error en configuración SendGrid:', error?.response?.body || error);
     }
   }
 
