@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Put, UnauthorizedException } from '@nestjs/common';
+import { Controller, Post, Body, Put, UnauthorizedException, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -31,9 +31,17 @@ export class UsersController {
   }
 
   @Post('request-password-reset')
+  @HttpCode(200) // Cambiamos el código de respuesta a 200
   async requestPasswordReset(@Body('email') email: string) {
-    await this.usersService.requestPasswordReset(email);
-    return { message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña' };
+    try {
+      await this.usersService.requestPasswordReset(email);
+      return { 
+        message: 'Si el email existe, recibirás instrucciones para restablecer tu contraseña'
+      };
+    } catch (error) {
+      console.error('Error en requestPasswordReset:', error);
+      throw new UnauthorizedException('Error al procesar la solicitud');
+    }
   }
 
   @Post('reset-password')
