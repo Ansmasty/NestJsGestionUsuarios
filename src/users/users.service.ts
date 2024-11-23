@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import * as sgMail from '@sendgrid/mail';
+import sgMail from '@sendgrid/mail';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -116,9 +116,7 @@ export class UsersService {
   }
 
   async resetPassword(token: string, email: string, newPassword: string): Promise<void> {
-    const user = await this.usersRepository.findOne({ 
-      where: { email }
-    });
+    const user = await this.usersRepository.findOne({ where: { email } });
 
     if (!user || !user.resetPasswordToken) {
       throw new UnauthorizedException('Token inválido o expirado');
@@ -128,13 +126,11 @@ export class UsersService {
       throw new UnauthorizedException('El token ha expirado');
     }
 
-    // Comparar el token recibido con el hash almacenado
     const isValidToken = await bcrypt.compare(token, user.resetPasswordToken);
     if (!isValidToken) {
       throw new UnauthorizedException('Token inválido');
     }
 
-    // Actualizar contraseña
     user.password = await bcrypt.hash(newPassword, 10);
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
