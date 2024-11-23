@@ -40,6 +40,15 @@ export class UsersService {
     }
   }
 
+  async findByUsernameOrEmail(usernameOrEmail: string): Promise<User | undefined> {
+    return this.usersRepository.findOne({
+      where: [
+        { username: usernameOrEmail },
+        { email: usernameOrEmail },
+      ],
+    });
+  }
+
   async register(username: string, email: string, password: string): Promise<User> {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = this.usersRepository.create({ username, email, password: hashedPassword });
