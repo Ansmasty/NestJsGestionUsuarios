@@ -3,64 +3,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import * as bcrypt from 'bcrypt';
-import * as nodemailer from 'nodemailer';
 import * as crypto from 'crypto';
+import * as sgMail from '@sendgrid/mail';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
 export class UsersService {
-  private transporter: nodemailer.Transporter;
-
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {
-    console.log('Iniciando configuración de email en ambiente:', process.env.NODE_ENV);
-    
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      console.warn('Variables de email no configuradas:', {
-        EMAIL_USER_EXISTS: !!process.env.EMAIL_USER,
-        EMAIL_PASSWORD_EXISTS: !!process.env.EMAIL_PASSWORD
-      });
-      return;
-    }
-
-    try {
-      this.transporter = nodemailer.createTransport({
-        service: 'gmail',
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-        debug: true,
-        logger: true
-      });
-
-      // Verificar configuración inmediatamente
-      this.verifyConnection();
-    } catch (error) {
-      console.error('Error al configurar transporter:', error);
-    }
-  }
-
-  private async verifyConnection() {
-    try {
-      const verification = await this.transporter.verify();
-      console.log('Configuración SMTP verificada:', verification);
-    } catch (error) {
-      console.error('Error en verificación SMTP:', error);
-      console.error('Detalles de configuración:', {
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        auth: {
-          user: process.env.EMAIL_USER ? 'configurado' : 'no configurado',
-          pass: process.env.EMAIL_PASSWORD ? 'configurado' : 'no configurado'
-        }
-      });
+    if (process.env.SENDGRID_API_KEY) {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
     }
   }
 
@@ -99,29 +53,24 @@ export class UsersService {
       user.resetPasswordExpires = new Date(Date.now() + 3600000);
       await this.usersRepository.save(user);
 
-      if (!this.transporter) {
-        console.log('Modo desarrollo - Token:', resetToken);
+      if (!process.env.SENDGRID_API_KEY) {
+        console.log('SendGrid no configurado - Token:', resetToken);
         return;
       }
 
-      const mailOptions = {
-        from: {
-          name: 'Sistema de Recuperación',
-          address: process.env.EMAIL_USER
-        },
-        to: user.email,
-        subject: 'Recuperación de Contraseña',
-        html: `
-          <h3>Recuperación de Contraseña</h3>
-          <p>Has solicitado restablecer tu contraseña.</p>
-          <p>Tu token de recuperación es: <strong>${resetToken}</strong></p>
-          <p>Este token expirará en 1 hora.</p>
-        `
-      };
-
       try {
-        const info = await this.transporter.sendMail(mailOptions);
-        console.log('Email enviado:', info.response);
+        await sgMail.send({
+          to: user.email,
+          from: 'didierguzman333@gmail.com', // Este email debe estar verificado en SendGrid
+          subject: 'Recuperación de Contraseña',
+          html: `
+            <h3>Recuperación de Contraseña</h3>
+            <p>Has solicitado restablecer tu contraseña.</p>
+            <p>Tu token de recuperación es: <strong>${resetToken}</strong></p>
+            <p>Este token expirará en 1 hora.</p>
+          `
+        });
+        console.log('Email enviado exitosamente');
       } catch (emailError) {
         console.error('Error al enviar email:', emailError);
         console.log('Token de respaldo:', resetToken);
