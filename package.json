@@ -28,7 +28,7 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/typeorm": "^10.0.2",
-    "@types/nodemailer": "^6.4.17",
+    "@sendgrid/mail": "^8.1.4",
     "bcrypt": "^5.1.1",
     "mysql2": "^3.11.4",
     "nodemailer": "^6.9.16",
