@@ -59,17 +59,17 @@ export class UsersService {
       }
 
       try {
-        await sgMail.send({
+        const msg = {
           to: user.email,
-          from: 'didierguzman333@gmail.com', // Este email debe estar verificado en SendGrid
+          from: {
+            email: 'didierguzman333@gmail.com',
+            name: 'Sistema de Recuperación'  // Nombre que configuraste
+          },
           subject: 'Recuperación de Contraseña',
-          html: `
-            <h3>Recuperación de Contraseña</h3>
-            <p>Has solicitado restablecer tu contraseña.</p>
-            <p>Tu token de recuperación es: <strong>${resetToken}</strong></p>
-            <p>Este token expirará en 1 hora.</p>
-          `
-        });
+          html: `...`
+        };
+
+        await sgMail.send(msg);
         console.log('Email enviado exitosamente');
       } catch (emailError) {
         console.error('Error al enviar email:', emailError);
