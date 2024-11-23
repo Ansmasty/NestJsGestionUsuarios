@@ -13,8 +13,12 @@ export class UsersService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {
+    // Verificar y configurar SendGrid al inicio
     if (process.env.SENDGRID_API_KEY) {
       sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      console.log('SendGrid API Key configurada');
+    } else {
+      console.warn('SENDGRID_API_KEY no está configurada');
     }
   }
 
@@ -58,22 +62,34 @@ export class UsersService {
         return;
       }
 
-      try {
-        const msg = {
-          to: user.email,
-          from: {
-            email: 'didierguzman333@gmail.com',
-            name: 'Sistema de Recuperación'  // Nombre que configuraste
-          },
-          subject: 'Recuperación de Contraseña',
-          html: `...`
-        };
+      const msg = {
+        to: user.email,
+        from: {
+          email: 'didierguzman333@gmail.com', // Email verificado en SendGrid
+          name: 'Sistema de Recuperación'
+        },
+        subject: 'Recuperación de Contraseña',
+        html: `
+          <div style="background-color: #f6f6f6; padding: 20px;">
+            <h2 style="color: #333;">Recuperación de Contraseña</h2>
+            <p>Has solicitado restablecer tu contraseña.</p>
+            <p>Tu token de recuperación es:</p>
+            <div style="background-color: #e9e9e9; padding: 10px; margin: 15px 0; font-family: monospace;">
+              <strong>${resetToken}</strong>
+            </div>
+            <p>Este token expirará en 1 hora.</p>
+            <p style="color: #666; font-size: 12px;">Si no solicitaste este cambio, puedes ignorar este mensaje.</p>
+          </div>
+        `,
+        text: `Tu token de recuperación es: ${resetToken}. Este token expirará en 1 hora.`
+      };
 
-        await sgMail.send(msg);
-        console.log('Email enviado exitosamente');
+      try {
+        const response = await sgMail.send(msg);
+        console.log('Email enviado exitosamente:', response[0].statusCode);
       } catch (emailError) {
-        console.error('Error al enviar email:', emailError);
-        console.log('Token de respaldo:', resetToken);
+        console.error('Error al enviar email:', emailError?.response?.body || emailError);
+        throw new Error('Error al enviar el email de recuperación');
       }
     } catch (error) {
       console.error('Error en requestPasswordReset:', error);
